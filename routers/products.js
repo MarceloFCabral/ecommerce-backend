@@ -1,8 +1,32 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const multer = require("multer");
 const router = express.Router();
 const Category = require("../models/category");
 const Product = require("../models/product");
+
+const FILE_TYPE_MAP = {
+  "image/png": "png",
+  "image/jpeg": "jpeg",
+  "image/jpg": "jpg",
+};
+
+//creating and configuring multer diskStorage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadError = FILE_TYPE_MAP[file.mimetype]
+      ? new Error("Invalid image type!")
+      : null;
+    cb(uploadError, "public/uploads");
+  },
+  filename: (req, file, cb) => {
+    const extension = FILE_TYPE_MAP[file.mimetype];
+    const fileName = file.originalname.replace(" ", "-");
+    cb(null, `${fileName}-${Date.now()}.${extension}`);
+  },
+});
+
+const upload = multer({ storage });
 
 //GET all products
 router.get("/", async (req, res) => {
@@ -74,16 +98,17 @@ router.get("/get/featured", async (req, res) => {
 });
 
 //POST
-router.post("/", async (req, res) => {
+router.post("/", upload.single("image"), async (req, res) => {
   const category = await Category.findById(req.body.category);
   if (!category)
     res.status(400).json({ message: "Invalid category.", success: false });
-
+  const fileName = req.file.filename; //filename provided by the multer middleware (upload.single)
+  const basePath = `${req.protocol}://${req.get("host")}/public/upload/`;
   const product = new Product({
     name: req.body.name,
     description: req.body.description,
     richDescription: req.body.richDescription,
-    image: req.body.image,
+    image: `${basePath}${fileName}`,
     brand: req.body.brand,
     price: req.body.price,
     category: req.body.category,
@@ -107,11 +132,13 @@ router.post("/", async (req, res) => {
 //PUT
 router.put("/:id", async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id))
-    res.status(400).json({ message: "Invalid id.", success: false });
+    return res.status(400).json({ message: "Invalid id.", success: false });
 
   const category = await Category.findById(req.body.category); //validating the category id sent in the body of the req
   if (!category)
-    res.status(400).json({ message: "Invalid category.", success: false });
+    return res
+      .status(400)
+      .json({ message: "Invalid category.", success: false });
 
   try {
     const updatedProduct = await Product.findByIdAndUpdate(
@@ -131,13 +158,12 @@ router.put("/:id", async (req, res) => {
       },
       { new: true }
     );
-    if (updatedProduct) res.status(200).json(updatedProduct);
-    else
-      res
-        .status(400)
-        .json({ message: "The product could not be updated", success: false });
+    if (updatedProduct) return res.status(200).json(updatedProduct);
+    return res
+      .status(400)
+      .json({ message: "The product could not be updated", success: false });
   } catch (err) {
-    res.status(500).json({ error: err, success: false });
+    return res.status(500).json({ error: err, success: false });
   }
 });
 

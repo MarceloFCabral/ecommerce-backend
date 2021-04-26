@@ -1,14 +1,15 @@
 const mongoose = require("mongoose");
 
-//products
 const orderItemSchema = mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
     required: true,
   },
-  quantity: Number,
-  required: true,
+  quantity: {
+    type: Number,
+    required: true,
+  },
 });
 
 orderItemSchema.virtual("id").get(function () {
