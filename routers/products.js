@@ -102,6 +102,12 @@ router.post("/", upload.single("image"), async (req, res) => {
   const category = await Category.findById(req.body.category);
   if (!category)
     res.status(400).json({ message: "Invalid category.", success: false });
+
+  if (!req.file)
+    res
+      .status(400)
+      .json({ message: "No image file has been sent", success: false });
+
   const fileName = req.file.filename; //filename provided by the multer middleware (upload.single)
   const basePath = `${req.protocol}://${req.get("host")}/public/upload/`;
   const product = new Product({
@@ -166,6 +172,35 @@ router.put("/:id", async (req, res) => {
     return res.status(500).json({ error: err, success: false });
   }
 });
+
+//PUT galery images
+router.put(
+  "/gallery-images/:id",
+  upload.array("images", 10),
+  async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id))
+      return res.status(400).json({ message: "Invalid id.", success: false });
+
+    try {
+      const basePath = `${req.protocol}://${req.get("host")}/public/upload/`;
+      let imagesPaths = [];
+      imagesPaths = req.files.map((file) => `${basePath}${file.filename}`);
+      const updatedProduct = await Product.findByIdAndUpdate(
+        req.params.id,
+        {
+          images: imagesPaths,
+        },
+        { new: true }
+      );
+      if (updatedProduct) return res.status(200).json(updatedProduct);
+      return res
+        .status(400)
+        .json({ message: "The product could not be updated", success: false });
+    } catch (err) {
+      return res.status(500).json({ error: err, success: false });
+    }
+  }
+);
 
 //DELETE
 router.delete("/:id", async (req, res) => {
