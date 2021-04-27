@@ -26,7 +26,6 @@ app.use(jwtAuth());
 app.use(errorHandler);
 app.use("/uploads/:filename", express.static("public/uploads"), (req, res) => {
   const basePath = `${__dirname}/public/uploads/`;
-  res.contentType("image/png");
   res.sendFile(`${basePath}${req.params.filename}`);
 });
 
